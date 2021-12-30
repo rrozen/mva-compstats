@@ -1,0 +1,9 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line_length = 100
+ignore = ["E501"]
+in_place = true
+recursive = true
