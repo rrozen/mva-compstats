@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 
 
 def two_gaussians(x1, y1, x2, y2, ntrain, ntest):
-    ntrain, ntest = 20, 20
 
     x1_test = np.random.multivariate_normal(np.array([x1,y1]), np.eye(2), ntest//2)
     x2_test = np.random.multivariate_normal(np.array([x2,y2]), np.eye(2), ntest//2)
