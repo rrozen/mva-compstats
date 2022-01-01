@@ -6,14 +6,20 @@ def compute_Kc(x, sigs=None, rho=1/np.sqrt(2)):
     ks = [RBF(rho)(x[:, i, None]) for i in range(d)]
     if sigs is None:
         sigs = [1e-3]*d
-    return np.linalg.inv(sum([np.linalg.inv(k+(sig**2)*np.identity(n)) for (k,sig) in zip(ks, sigs)]))
+    return np.linalg.inv(sum([np.linalg.inv(k+(sig**2)*np.identity(n)) 
+                for (k,sig) in zip(ks, sigs)]))
 
 class consensus(Kernel):
     def __init__(self, sigs, rho=1):
         self.rho = rho
         self.sigs = sigs
-    def __call__(self, x, Y=None, eval_gradient=False):
-        return compute_Kc(x, self.sigs, self.rho)
+    def __call__(self, X, Y=None, eval_gradient=False):
+        if Y is None:
+            return compute_Kc(X, self.sigs, self.rho)
+        else:
+            ntrain, _ = X.shape
+            Kc = compute_Kc(np.concatenate((X,Y)), self.sigs, self.rho)  
+            return Kc[:ntrain, ntrain:]
     def is_stationary(self):
         return False
     def diag(self,X):
