@@ -25,39 +25,48 @@ Prediction :
 """
 
 import numpy as np
-from sklearn.gaussian_process.kernels import Kernel, RBF  # type: ignore
+from typing import Tuple, List, Optional
+from sklearn.gaussian_process.kernels import Kernel, RBF, Hyperparameter  # type: ignore
 
 
-def getKc(X, sigs=None, rho=1 / np.sqrt(2), missing_value=None):
+def computeKc(
+    X: np.ndarray,
+    sig2s: Optional[List[float]] = None,
+    rho: float = 1 / np.sqrt(2),
+    missing_value: Optional[float] = None,
+) -> Tuple[np.ndarray, List[np.ndarray]]:
     n, d = X.shape
-    if sigs is None:
-        sigs = [1e-3] * d
+    if sig2s is None:
+        sig2s = [1] * d
 
     if missing_value is not None:
         X[X == missing_value] = np.nan
 
     if np.isnan(X).any():  # missing views
-        Lambda = np.zeros((n, n))
-        for i, sig in enumerate(sigs):
+        invs = []
+        for i, sig2 in enumerate(sig2s):
+            A = np.zeros((n, n))
             view = np.arange(n)[~np.isnan(X[:, i])]
             xx, yy = np.meshgrid(view, view)
-            Lambda[xx, yy] += np.linalg.inv(
-                RBF(rho)(X[view, i, None]) + sig ** 2 * np.identity(view.size)
-            )
-        return np.linalg.inv(Lambda)
+            A[xx, yy] = np.linalg.inv(RBF(rho)(X[view, i, None]) + sig2 * np.identity(view.size))
+            invs.append(A)
+    else:
+        ks = [RBF(rho)(X[:, i, None]) for i in range(d)]
+        invs = [np.linalg.inv(k + sig2 * np.identity(n)) for (k, sig2) in zip(ks, sig2s)]
 
-    ks = [RBF(rho)(X[:, i, None]) for i in range(d)]
-
-    return np.linalg.inv(
-        sum([np.linalg.inv(k + (sig ** 2) * np.identity(n)) for (k, sig) in zip(ks, sigs)])
-    )
+    return np.linalg.inv(sum(invs)), invs
 
 
 class Consensus(Kernel):
-    def __init__(self, sigs=None, rho=1, missing_value=None):
+    def __init__(self, sig2s, sig2s_bounds, rho=1, missing_value=None):
         self.rho = rho
-        self.sigs = sigs
+        self.sig2s = sig2s
+        self.sig2s_bounds = sig2s_bounds
         self.missing_value = missing_value
+
+    @property
+    def hyperparameter_length_scale(self):
+        return Hyperparameter("sig2s", "numeric", self.sig2s_bounds, len(self.sig2s))
 
     @property
     def requires_vector_input(self):
@@ -65,13 +74,23 @@ class Consensus(Kernel):
 
     def __call__(self, X, Y=None, eval_gradient=False):
         if Y is None:
-            return getKc(X, self.sigs, self.rho, missing_value=self.missing_value)
+            Kc, invs = computeKc(X, self.sig2s, self.rho, missing_value=self.missing_value)
         else:
+            if eval_gradient:
+                raise ValueError("Gradient can only be evaluated when Y is None.")
             ntrain, _ = X.shape
-            Kc = getKc(
-                np.concatenate((X, Y)), self.sigs, self.rho, missing_value=self.missing_value
+            Kc, invs = computeKc(
+                np.concatenate((X, Y)), self.sig2s, self.rho, missing_value=self.missing_value
             )
-            return Kc[:ntrain, ntrain:]
+            Kc = Kc[:ntrain, ntrain:]
+
+        if eval_gradient:
+            Kc_gradient = np.stack(
+                [Kc @ inv @ inv @ Kc / sig2 for inv, sig2 in zip(invs, self.sig2s)], axis=-1
+            )
+            return Kc, Kc_gradient
+        else:
+            return Kc
 
     def is_stationary(self):
         return False
