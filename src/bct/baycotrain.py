@@ -13,15 +13,15 @@ Underlying function f. Observations are Y = f(X) + epsilon, with epsilon gaussia
     [f(X), f(X')] ~ Normal(0, K([X, X'], [X, X']))
 
 Hence f(X') | f(X) ~ Normal(mu(X'), cov(X')) where
-    mu(X') = K(X', X) • inv(K(X, X)) • Y
+    mu(X') = K(X', X) . inv(K(X, X)) . Y
     cov(X') = ...
 Prediction :
 
-    f' = K(X', X) • inv(K(X, X)) • Y
+    f' = K(X', X) . inv(K(X, X)) . Y
 
 // With noise taken into account
 
-    f' = K(X', X) • inv(K(X, X) + sigma^2•I) • Y
+    f' = K(X', X) . inv(K(X, X) + sigma^2.I) . Y
 """
 
 import numpy as np
