@@ -1,8 +1,34 @@
+"""
+Gaussian Processes
+==================
+
+Underlying function f. Observations are Y = f(X) + epsilon, with epsilon gaussian noise with parameter sigma.
+
+- Observe Y from X
+- Predict f(X')
+
+
+// Without noise taken into account
+
+    [f(X), f(X')] ~ Normal(0, K([X, X'], [X, X']))
+
+Hence f(X') | f(X) ~ Normal(mu(X'), cov(X')) where
+    mu(X') = K(X', X) • inv(K(X, X)) • Y
+    cov(X') = ...
+Prediction :
+
+    f' = K(X', X) • inv(K(X, X)) • Y
+
+// With noise taken into account
+
+    f' = K(X', X) • inv(K(X, X) + sigma^2•I) • Y
+"""
+
 import numpy as np
 from sklearn.gaussian_process.kernels import Kernel, RBF  # type: ignore
 
 
-def compute_Kc(x, sigs=None, rho=1 / np.sqrt(2)):
+def getKc(x, sigs=None, rho=1 / np.sqrt(2)):
     n, d = x.shape
     ks = [RBF(rho)(x[:, i, None]) for i in range(d)]
     if sigs is None:
@@ -12,17 +38,17 @@ def compute_Kc(x, sigs=None, rho=1 / np.sqrt(2)):
     )
 
 
-class consensus(Kernel):
+class Consensus(Kernel):
     def __init__(self, sigs, rho=1):
         self.rho = rho
         self.sigs = sigs
 
     def __call__(self, X, Y=None, eval_gradient=False):
         if Y is None:
-            return compute_Kc(X, self.sigs, self.rho)
+            return getKc(X, self.sigs, self.rho)
         else:
             ntrain, _ = X.shape
-            Kc = compute_Kc(np.concatenate((X, Y)), self.sigs, self.rho)
+            Kc = getKc(np.concatenate((X, Y)), self.sigs, self.rho)
             return Kc[:ntrain, ntrain:]
 
     def is_stationary(self):
@@ -30,13 +56,3 @@ class consensus(Kernel):
 
     def diag(self, X):
         pass
-
-
-def regression(x_train, y_train, x_test):
-    ntrain = len(x_train)
-    x = np.concatenate((x_train, x_test))
-    Kc = compute_Kc(x, [1e-3, 1e3])
-    K_train = Kc[:ntrain, :ntrain]
-    K_test = Kc[:ntrain, ntrain:]
-    y_test = K_test.T @ K_train @ y_train
-    return y_test
