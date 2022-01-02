@@ -27,6 +27,7 @@ Prediction :
 import numpy as np
 from typing import Tuple, List, Optional
 from sklearn.gaussian_process.kernels import Kernel, RBF, Hyperparameter  # type: ignore
+from sklearn.gaussian_process import GaussianProcessRegressor  # type: ignore
 
 
 def computeKc(
@@ -97,3 +98,11 @@ class Consensus(Kernel):
 
     def diag(self, X):
         pass
+
+
+class MyGPRegressor(GaussianProcessRegressor):
+    def predict(self, X, return_std=False, return_cov=False):
+        ntrain, _ = self.X_train_.shape
+        K = self.kernel_(np.concatenate((self.X_train_, X)))[:ntrain, :ntrain]
+        self.alpha_ = np.linalg.solve(K, self.y_train_)
+        return super().predict(X, return_std, return_cov)
