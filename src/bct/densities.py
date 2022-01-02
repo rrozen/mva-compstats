@@ -23,7 +23,7 @@ class Density:
     def pdf(self, x: np.ndarray) -> Union[float, np.ndarray]:
         return np.exp(self.logpdf(x))
 
-    def sample(self, size: Union[int, Tuple[int, ...]] = 1) -> np.ndarray:
+    def sample(self, size: Union[int, Tuple[int, ...]] = 1):
         raise NotImplementedError(
             f"Method logpdf for density {type(self).__name__} is not implemented."
         )
@@ -78,7 +78,7 @@ class Mixture(Density):
         assert x.shape[-1] == self.dim
         return logsumexp([d.logpdf(x) for d in self.ds], b=self.p[:, None], axis=0)
 
-    def sample(self, size: Union[int, Tuple[int, ...]] = 1) -> np.ndarray:
+    def sample(self, size: Union[int, Tuple[int, ...]] = 1) -> Tuple[np.ndarray, np.ndarray]:
         if isinstance(size, int):
             size = (size,)
         clusters = np.random.randint(self.m, size=size)
@@ -86,4 +86,4 @@ class Mixture(Density):
         ret = np.zeros(ret_size)
         for k in range(self.m):
             ret[clusters == k, :] = self.ds[k].sample(size=np.sum(clusters == k))
-        return ret.squeeze()
+        return ret.squeeze(), clusters

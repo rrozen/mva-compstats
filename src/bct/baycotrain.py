@@ -1,9 +1,35 @@
+"""
+Gaussian Processes
+==================
+
+Underlying function f. Observations are Y = f(X) + epsilon, with epsilon gaussian noise with parameter sigma.
+
+- Observe Y from X
+- Predict f(X')
+
+
+// Without noise taken into account
+
+    [f(X), f(X')] ~ Normal(0, K([X, X'], [X, X']))
+
+Hence f(X') | f(X) ~ Normal(mu(X'), cov(X')) where
+    mu(X') = K(X', X) • inv(K(X, X)) • Y
+    cov(X') = ...
+Prediction :
+
+    f' = K(X', X) • inv(K(X, X)) • Y
+
+// With noise taken into account
+
+    f' = K(X', X) • inv(K(X, X) + sigma^2•I) • Y
+"""
+
 import numpy as np
 from typing import Tuple, List
 from sklearn.gaussian_process.kernels import Kernel, RBF, Hyperparameter  # type: ignore
 
 
-def compute_Kc(
+def computeKc(
     x: np.ndarray, sig2s=None, rho: float = 1 / np.sqrt(2)
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
     n, d = x.shape
@@ -26,12 +52,12 @@ class Consensus(Kernel):
 
     def __call__(self, X, Y=None, eval_gradient=False):
         if Y is None:
-            Kc, invs = compute_Kc(X, self.sig2s, self.rho)
+            Kc, invs = computeKc(X, self.sig2s, self.rho)
         else:
             if eval_gradient:
                 raise ValueError("Gradient can only be evaluated when Y is None.")
             ntrain, _ = X.shape
-            Kc, invs = compute_Kc(np.concatenate((X, Y)), self.sig2s, self.rho)
+            Kc, invs = computeKc(np.concatenate((X, Y)), self.sig2s, self.rho)
             Kc = Kc[:ntrain, ntrain:]
 
         if eval_gradient:
