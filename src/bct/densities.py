@@ -58,11 +58,16 @@ class Gaussian(Density):
 class Mixture(Density):
     "Combines densities into a mixture."
 
-    def __init__(self, ds: List[Density], p: Optional[List[float]] = None):
+    def __init__(self, ds: List[Density],
+                 clusters_map: Optional[List[int]] = None,
+                 p: Optional[List[float]] = None):
         self._dim = ds[0].dim
         assert all(d.dim == self._dim for d in ds)
 
-        self.m = len(ds)  # number of clusters
+        self.m = len(ds)  # number of gaussians
+        if clusters_map is None:
+            clusters_map = np.arange(self.m)
+        self.clusters_map = clusters_map
         if p is None:
             p = np.ones(self.m) / self.m
         self.p = np.array(p)
@@ -81,9 +86,11 @@ class Mixture(Density):
     def sample(self, size: Union[int, Tuple[int, ...]] = 1) -> Tuple[np.ndarray, np.ndarray]:
         if isinstance(size, int):
             size = (size,)
-        clusters = np.random.randint(self.m, size=size)
+        gaussians = np.random.randint(self.m, size=size)
         ret_size = *size, self.dim
         ret = np.zeros(ret_size)
+        clusters = np.zeros_like(gaussians)
         for k in range(self.m):
-            ret[clusters == k, :] = self.ds[k].sample(size=np.sum(clusters == k))
+            ret[gaussians == k, :] = self.ds[k].sample(size=np.sum(gaussians == k))
+            clusters[gaussians == k] = self.clusters_map[k]
         return ret.squeeze(), clusters
