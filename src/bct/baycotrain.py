@@ -36,23 +36,24 @@ def computeKc(
     rho: float = 1 / np.sqrt(2),
     missing_value: Optional[float] = None,
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
-    n, d = X.shape
+    X_ = X.copy()
+    n, d = X_.shape
     if sig2s is None:
         sig2s = [1] * d
 
     if missing_value is not None:
-        X[X == missing_value] = np.nan
+        X_[X_ == missing_value] = np.nan
 
-    if np.isnan(X).any():  # missing views
+    if np.isnan(X_).any():  # missing views
         invs = []
         for i, sig2 in enumerate(sig2s):
             A = np.zeros((n, n))
-            view = np.arange(n)[~np.isnan(X[:, i])]
+            view = np.arange(n)[~np.isnan(X_[:, i])]
             xx, yy = np.meshgrid(view, view)
-            A[xx, yy] = np.linalg.inv(RBF(rho)(X[view, i, None]) + sig2 * np.identity(view.size))
+            A[xx, yy] = np.linalg.inv(RBF(rho)(X_[view, i, None]) + sig2 * np.identity(view.size))
             invs.append(A)
     else:
-        ks = [RBF(rho)(X[:, i, None]) for i in range(d)]
+        ks = [RBF(rho)(X_[:, i, None]) for i in range(d)]
         invs = [np.linalg.inv(k + sig2 * np.identity(n)) for (k, sig2) in zip(ks, sig2s)]
 
     return np.linalg.inv(sum(invs)), invs
