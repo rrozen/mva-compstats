@@ -97,7 +97,7 @@ class Consensus(Kernel):
         return False
 
     def diag(self, X):
-        pass
+        return np.diag(self.__call__(X))
 
 
 class MyGPRegressor(GaussianProcessRegressor):
@@ -109,10 +109,18 @@ class MyGPRegressor(GaussianProcessRegressor):
 
 
 class MyGPClassifier(GaussianProcessClassifier):
-    def predict(self, X):
+    def update_cache(self, X):
         ntrain, _ = self.base_estimator_.X_train_.shape
         K = self.kernel_(np.concatenate((self.base_estimator_.X_train_, X)))[:ntrain, :ntrain]
-        _, (self.base_estimator_.pi_, _, _, _, _) = self.base_estimator_._posterior_mode(
+        _, (self.base_estimator_.pi_, self.base_estimator_.W_sr_, self.base_estimator_.L_, _, _
+            ) = self.base_estimator_._posterior_mode(
             K, return_temporaries=True
         )
+
+    def predict(self, X):
+        self.update_cache(X)
         return super().predict(X)
+
+    def predict_proba(self, X):
+        self.update_cache(X)
+        return super().predict_proba(X)
